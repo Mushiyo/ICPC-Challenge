@@ -1,0 +1,327 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <link rel="stylesheet" type="text/css" href="style.css">
+  <title>2012 ICPC Challenge Player Execution Environment</title>
+</head>
+<body>
+
+<h1>Player/Game Interface</h1>
+
+<p>
+Player implementations are external to the game itself.  A player is a
+separate executable that communicates with the game via standard input
+and standard output.  The player is executed when the game starts up
+and continues running until the game is finished.  At the start of the
+game, the game engine sends each player a description of the field, the
+fleet of boats and the sequence of rally points.  At the start of each
+turn, the game engine sends the player a description of the current
+game state.  The player reads this description from standard input,
+chooses a move for each boat and sends it back by writing it to
+standard output.
+</p>
+
+<h2>One-Time Game Description</h2>
+
+<p>
+At the start of the game, each player receives a description of the
+field, the rally points and the configurations of the boats.  This
+description starts with a floating point field size, representing the
+width and height of the playing field. 
+</p>
+
+<p>
+The field size is followed by a description the configuration of each
+boat.  This list starts with the five boats controlled by
+the red player, then the five boats controlled by the
+blue player.  Each boat is described by a line of six floating point
+parameters, the boat radius, the X and Y location of
+the <var>thrustPosition</var> relative to the boat center,
+the <var>thrustStrength</var>, the <var>turnRange</var> for the thrust
+and, finally, the mass of the boat.  These parameters are described in
+the <a href="rules.html#boat.section">boats section of the rules</a>.
+</p>
+
+<p>
+The list of boat configurations is followed by the course description
+for each player.  This starts with a positive integer, <var>n</var>,
+giving the number of rally points on the course.  This is followed by
+the sequence of <var>n</var> rally points on the red player's course
+and then the sequence of <var>n</var> rally points on the blue
+player's course.  Each rally point is given on a line by itself, as a
+floating point <var>X</var> coordinate followed by a <var>Y</var>
+coordinate.  The blue player's course is always identical to the red
+course, under a 180 degree rotation about the field center.
+</p>
+
+<h2>Per-Turn Game State</h2>
+
+<p>
+At the start of each turn, the game engine sends each player current
+values for the locations, velocities, headings and rotation speeds for
+all boats.  The game also reports the current score, which boat has the baton and which
+rally points have been touched on the current lap.
+</p>
+
+<p>
+This description starts with a line containing an
+integer, <var>t</var>, indicating the turn number.  This value will
+normally start at zero and increment to 899 as the game
+progresses.  If the player fails to respond promptly enough with a
+move, the player may miss a turn.  This will be indicated to a player
+by a skip in the turn number.  When the game is over, a value of -1 is
+sent to the player to indicate that no more game states will follow.
+At this point, the player should exit.
+</p>
+
+<p>
+The turn number is followed by a line giving the current score for
+each player, first an integer giving the score for the red player and
+then an integer giving the score for the blue player.  
+Player scores
+are followed by a report of each player's progress toward completing
+the current lap.  This starts with an integer, <var>p<sub>r</sub></var>,
+indicating the number of rally points the red player has already touched
+on the current lap.  This is followed by <var>p<sub>b</sub></var>, the
+number of rally points the blue player has touched.
+</p>
+
+<p>
+This is followed by the index of the red boat with the baton, and the
+index of the blue boat with the baton.  Both of these values range
+from 0 to 4.
+</p>
+
+</p>
+Finally, the per-turn game state reports the state of all boats.  This
+is given as five lines for the current states of the red
+player's boats, and then five lines giving the current
+states of the blue player's boats.  A boat is described by six
+floating-point values, the <var>X</var> and <var>Y</var> location of
+the boat's center, the heading of the boat measured in radians from
+the positive <var>X</var> axis, the linear velocity of the boat,
+measured in game units per turn and given as <var>X</var>
+and <var>Y</var> components, and, finally, the boat's rotation speed,
+given in radians per turn.
+</p>
+
+<p>
+For each player, the ordering of boats in the per-turn state is always
+the same, and it matches the ordering used to describe boat parameters
+at the start of the game.
+</p>
+
+<h2>Player Output Format</h2>
+
+<p>
+At each turn, the player is to print a desired move to standard
+output.  The move is given as a desired move for each boat and then an
+indication as to whether the baton is to be passed.  The move for an
+individual boat is given as an integer followed by a floating point
+number.  If the player wishes to apply thrust, the value 1 should be
+output, followed by the desired <var>thrustAngle</var>. If the player does not
+wish to apply thrust, a value of zero should be output, followed by an
+arbitrary floating point number (which is ignored).
+</p>
+
+<p>
+After all boat moves have been reported, the player should output an
+integer indicating whether the baton should be passed.  A value of -1
+indicates that the baton should remain with the boat that currently
+holding it.  Otherwise, the player should output the index of the
+desired recipient of the baton.  If the two boats are close enough,
+the baton will be passed.  Otherwise, the request will be ignored.
+</p>
+
+<p>
+For example, the following move will apply thrust to boats 0 and 3,
+turning the thrust slightly to the left on boat zero and to the right
+on boat three.  The other boats will continue moving according to
+their current linear velocity and rotational speed.  The 0.3 turn
+angle for boat 2 will be ignored.  The player is
+also attempting to pass the baton to boat 1.
+</p>
+
+<pre>
+1 0.1 0 0.0 0 0.3 1 -0.25 0 0.0 1
+</pre>
+
+
+<h2>Real-Time Response Requirement</h2>
+
+<p>
+After a snapshot of the game state is sent, the player generally has
+one tenth of a second to respond with a move.  For the first turn of
+the game, the player has a full second to respond, but subsequent
+turns give the player only 0.1 seconds.  The additional time for the
+first move reflects the need to give languages like Java an
+opportunity to demand-load code used by the player.  This can cause
+the first move to take longer than subsequent moves.
+</p>
+
+<p>
+If the player fails to respond or if the response is received too
+late, the game will assign the player a default move of no thrust for
+any boat and no passing of the baton.  The game expects to receive a
+move for each state that is sent to a player, but the game engine does
+not maintain a queue of game states on behalf of each player.  If a
+player falls behind in parsing game states and responding with a
+desired move, the engine will discard, rather than queue, subsequent
+states for the player.  A player that is too slow to respond will
+receive a sampling of the states, and the value of the turn number
+will indicate that one or more states have been dropped.
+</p>
+
+<p>
+At the end of the game, a report is printed to standard output
+indicating any game states that were discarded without being sent to
+each player.  Likewise, a list is printed reporting any moves that
+were not received from the player in time.
+</p>
+
+<h2>Player-Centric Encoding</h2>
+
+<p>
+Communication with the player is encoded so that both players can be
+written as if they control the red player.  Internally, the first
+player specified at startup is actually the red player.  For
+communication with the second player, game state is encoded with
+coordinates for all geometry rotated 180 degrees about the center of
+the field.  This is intended to simplify the design of the player
+somewhat.  For example, the programmer can always assume that the
+first five boats are their own, and the next
+five are those of the opponent.
+</p>
+
+<h2>Player Debugging</h2>
+
+<p>
+Your player's standard output is used to communicate with the game
+engine.  While developing your player, you will want to send any
+debugging output you need to standard error rather than standard
+output, so that the game engine doesn't think it's part of your move.
+</p>
+
+<p>
+As described in the usage instructions, the game
+engine <a href="usage.html#synchronous.section">can operate
+synchronously</a> with the player, waiting indefinitely for each move
+before performing the next simulation step.  This lets the developer
+suspend the real-time response requirement during debugging.  The game
+engine can also be <a href="usage.html#turn.file.section">configured
+to dump game state and player move information for every turn in a
+game</a>.  This can let the developer inspect the sequence of messages
+exchanged between game and player after a game is completed.
+</p>
+
+<h2>Frame Interpolation</h2>
+
+<p>
+Players' turns occur every 0.1 seconds.  The 0.1 second delay is
+intended to give the player an adequate time to select a next move.
+However, displaying animation frames at this framerate yields a jumpy
+visualization.  To help smooth things out, the game engine computes
+additional, intermediate states for animation.  These are apparent when
+visualizing a live game and they affect the contents of the trace file
+when a game is recorded for later playback.  This behavior should not
+be apparent to players participating in the game, but, if ignored, it
+might cause some confusion about apparent inconsistency between the
+player's view of the game and the contents of a saved game trace file.
+</p>
+
+<h1>Tournament Execution Environment</h1>
+
+<p>
+Once you have a working player, you will want to submit it to the ICPC
+Challenge site to see how it does against real opponents.  For
+preliminary matches and for the final tournament, player code will be
+compiled and will run on a virtual machine running on a 3.0 Ghz Xeon
+processor installed with Ubuntu 10.4 Linux.  Players in C++ will be
+compiled with g++ version 4.4.3.  Players coded in Java will be
+compiled and run with Sun JDK 1.6.0_20.
+</p>
+
+<p>
+During matches, player code will have uncontested use of a single core
+and 1 GB of physical memory, except for the overhead associated with
+the operating system and the virtual machine environment. During
+execution, player submissions will be permitted to read from standard
+input and write to standard output and standard error. They may also
+open files in the current directory for reading and even create new
+threads.  Attempts to access other system resources (e.g., read from
+files elsewhere, create network connections, start new processes) may
+result in disqualification.
+</p>
+
+<h2>Player Operation and Organization</h2>
+
+<p>
+Source code for a player may consist of multiple files, but all files
+must reside in a single directory. Java implementations should place
+all classes in the default package.
+</p>
+
+<p>
+Submissions can include source files and data files supporting the
+player, but the submission for a single player cannot exceed 256
+kilobytes in total size and 50 individual files.  During execution,
+the player's source code and any other submitted files will be available
+in the current directory.
+</p>
+
+</p>
+For C/C++ submissions, all files ending in .cpp will be compiled and
+linked together into an executable. During compilation, the submission
+directory will be the current directory. Player code will be compiled
+with the -O option and will be linked with -lpthread.
+</p>
+
+<p>
+For Java submissions, all files ending in .java will be compiled. Only
+one main function is expected in the resulting classes, and that class
+will be executed as the player.
+</p>
+
+<p>
+Submission language is determined by the file name extensions used in
+the submission. Submissions that appear to contain a mixture of
+languages (<i>e.g.</i>, some files ending in .java and some in .cpp) will be
+considered invalid, as will submissions do not compile or do not have
+a single entry point.
+</p>
+
+</body></html>
